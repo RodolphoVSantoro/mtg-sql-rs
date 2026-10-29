@@ -9,6 +9,13 @@ use std::collections::HashMap;
 
 pub type CardFilter = HashMap<String, Value>;
 
+const STR_LIKE_FILTERS: [&str; 4] = ["name", "text", "flavorText", "manaCost"];
+const STR_NOT_LIKE_FILTERS: [&str; 4] = ["nameNot", "textNot", "flavorTextNot", "manaCostNot"];
+
+const STR_EQUAL_FILTERS: [&str; 2] = ["artist", "borderColor"];
+
+const NUM_EQUAL_FILTERS: [&str; 4] = ["manaValue", "power", "toughness", "loyalty"];
+
 fn add_str_like_filter<'a>(
     mut builder: SqlQueryBuilder<'a>,
     mut count_builder: SqlQueryBuilder<'a>,
@@ -32,8 +39,7 @@ fn add_str_like_filters<'a>(
     mut count_builder: SqlQueryBuilder<'a>,
     filter: &CardFilter,
 ) -> (SqlQueryBuilder<'a>, SqlQueryBuilder<'a>) {
-    let str_like_filters = ["name", "text", "flavorText"];
-    for like_filter in str_like_filters {
+    for like_filter in STR_LIKE_FILTERS {
         if let Some(like_filter_value) = filter
             .get(like_filter)
             .and_then(|v| v.as_str())
@@ -100,8 +106,7 @@ fn add_str_not_like_filters<'a>(
     mut count_builder: SqlQueryBuilder<'a>,
     filter: &CardFilter,
 ) -> (SqlQueryBuilder<'a>, SqlQueryBuilder<'a>) {
-    let str_not_like_filters = ["nameNot", "textNot", "flavorTextNot"];
-    for not_like_filter in str_not_like_filters {
+    for not_like_filter in STR_NOT_LIKE_FILTERS {
         if let Some(not_like_filter_value) = filter
             .get(not_like_filter)
             .and_then(|v| v.as_str())
@@ -172,9 +177,7 @@ fn add_num_equal_filters<'a>(
     mut count_builder: SqlQueryBuilder<'a>,
     filter: &CardFilter,
 ) -> (SqlQueryBuilder<'a>, SqlQueryBuilder<'a>) {
-    let num_equal_filters = ["manaValue"];
-
-    for equal_filter in num_equal_filters {
+    for equal_filter in NUM_EQUAL_FILTERS {
         if let Some(equal_filter_value) = filter
             .get(equal_filter)
             .and_then(|v| v.as_i64())
@@ -240,8 +243,7 @@ fn add_str_equal_filters<'a>(
     mut count_builder: SqlQueryBuilder<'a>,
     filter: &CardFilter,
 ) -> (SqlQueryBuilder<'a>, SqlQueryBuilder<'a>) {
-    let str_equal_filters = ["artist", "borderColor"];
-    for equal_filter in str_equal_filters {
+    for equal_filter in STR_EQUAL_FILTERS {
         if let Some(equal_filter_value) = filter
             .get(equal_filter)
             .and_then(|v| v.as_str())
@@ -415,28 +417,6 @@ pub struct CardCompleteResult {
     pub cards: Vec<CardComplete>,
     pub total: i32,
 }
-
-// #[derive(Serialize, Deserialize, Clone, Debug)]
-// pub struct CardFilter {
-//     pub page: Option<i32>,
-//     pub count: Option<i32>,
-//     pub is_complete: Option<bool>,
-//     pub border_color: Option<String>,
-//     pub color_identity: Option<String>,
-//     pub colors: Option<String>,
-//     pub keywords: Option<String>,
-//     pub loyalty: Option<String>,
-//     pub mana_cost: Option<String>,
-//     pub mana_value: Option<f64>,
-//     pub name: Option<String>,
-//     pub power: Option<String>,
-//     pub rarity: Option<String>,
-//     pub text: Option<String>,
-//     pub toughness: Option<String>,
-//     pub r#type: Option<String>,
-//     pub types: Option<String>,
-//     pub uuid: Option<String>,
-// }
 
 #[derive(Serialize, Deserialize, Clone, FromRow, Debug)]
 #[sqlx(rename_all = "camelCase")]
