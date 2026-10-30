@@ -51,7 +51,6 @@ pub struct CardHttpQuery {
     pub count: Option<u32>,
 }
 
-// .contains(&val)
 const NUM_FILTERS: &[&str] = &["manaValue"];
 const STR_FILTERS: &[&str] = &[
     "name",
