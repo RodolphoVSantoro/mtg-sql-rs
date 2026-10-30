@@ -1,5 +1,8 @@
+#![allow(clippy::needless_return, clippy::manual_let_else)]
+
 mod helpers;
 mod models;
+mod repositories;
 mod routes;
 use axum::Router;
 use sqlx::SqlitePool;

@@ -6,13 +6,21 @@ use crate::{
         responses::{internal_server_response, ok_response},
     },
     models::card,
+    repositories::card::{CardFilter, CardHttpQuery},
 };
-use axum::{Json, Router, body::Body, extract::State, response::Response};
+
+use axum::{
+    Json, Router,
+    body::Body,
+    extract::{Query, State},
+    response::Response,
+};
 use serde::{Deserialize, Serialize};
 
 pub async fn list(
     State(app_state): State<AppState>,
-    body: Option<Json<card::CardFilter>>,
+    query: Option<Query<CardHttpQuery>>,
+    body: Option<Json<CardFilter>>,
 ) -> Response<Body> {
     let conn = &mut app_state.pool.acquire().await;
 
@@ -24,10 +32,12 @@ pub async fn list(
         }
     };
 
-    let cards_result = match body {
-        Some(Json(body)) => card::CardSimple::list(conn, Some(body)).await,
-        _ => card::CardSimple::list(conn, None).await,
-    };
+    let cards_result = card::CardSimple::list(
+        conn,
+        body.map(|Json(filter)| filter),
+        query.map(|Query(card_query)| card_query),
+    )
+    .await;
     match cards_result {
         Ok(cards_result) => {
             return ok_response(CardResult {
@@ -49,7 +59,8 @@ pub async fn list(
 
 pub async fn list_complete(
     State(app_state): State<AppState>,
-    body: Option<Json<card::CardFilter>>,
+    query: Option<Query<CardHttpQuery>>,
+    body: Option<Json<CardFilter>>,
 ) -> Response<Body> {
     let conn = &mut app_state.pool.acquire().await;
 
@@ -61,10 +72,9 @@ pub async fn list_complete(
         }
     };
 
-    let cards_result = match body {
-        Some(Json(body)) => card::CardComplete::list(conn, Some(body)).await,
-        _ => card::CardComplete::list(conn, None).await,
-    };
+    let cards_result = card::CardComplete::list(conn, body.map(|Json(filter)| filter),
+        query.map(|Query(card_query)| card_query),).await;
+
     match cards_result {
         Ok(cards_result) => {
             return ok_response(CardResult {
