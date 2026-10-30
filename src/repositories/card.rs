@@ -4,8 +4,8 @@ use serde::Deserialize;
 use serde_json::Value;
 use sqlx::{Sqlite, pool::PoolConnection};
 
-use crate::helpers::responses::HttpError;
 use crate::helpers::query_builder::SqlQueryBuilder;
+use crate::helpers::responses::HttpError;
 use crate::models::card::{CardComplete, CardCompleteResult, CardSimple, CardSimpleResult, Count};
 
 #[derive(Debug, Clone, Deserialize)]
@@ -42,33 +42,55 @@ pub enum CardFilter {
     Like(Box<LikeFilter>),
     Not(Box<NotFilter>),
     And(Box<AndFilter>),
-    Or(Box<OrFilter>)
+    Or(Box<OrFilter>),
 }
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct CardHttpQuery {
     pub page: Option<u32>,
-    pub count: Option<u32>
+    pub count: Option<u32>,
 }
 
 // .contains(&val)
-const NUM_FILTERS: [&str; 1] = ["manaValue"];
-const STR_FILTERS: [&str; 9] = ["name", "text", "flavorText", "manaCost", "artist", "borderColor", "power", "toughness", "loyalty"];
+const NUM_FILTERS: &[&str] = &["manaValue"];
+const STR_FILTERS: &[&str] = &[
+    "name",
+    "text",
+    "flavorText",
+    "keywords",
+    "manaCost",
+    "power",
+    "toughness",
+    "life",
+    "loyalty",
+    "power",
+    "toughness",
+    "loyalty",
+    "colors",
+    "colorIdentity",
+    "type",
+    "types",
+    "subtypes",
+    "supertypes",
+    "borderColor",
+    "artist",
+    "leadershipSkills",
+    "printings"
+];
 
-fn validate_like_filter_type(filter: &LikeFilter) -> bool{
+fn validate_like_filter_type(filter: &LikeFilter) -> bool {
     return STR_FILTERS.contains(&filter.field.as_str());
 }
 
-fn validate_equal_filter_type(filter: &EqualFilter) -> bool{
-    return 
-        NUM_FILTERS.contains(&filter.field.as_str()) ||
-        STR_FILTERS.contains(&filter.field.as_str());
+fn validate_equal_filter_type(filter: &EqualFilter) -> bool {
+    return NUM_FILTERS.contains(&filter.field.as_str())
+        || STR_FILTERS.contains(&filter.field.as_str());
 }
 
 fn apply_equal_filter<'a>(
     mut builder: SqlQueryBuilder<'a>,
     mut count_builder: SqlQueryBuilder<'a>,
-    filter: EqualFilter
+    filter: EqualFilter,
 ) -> (SqlQueryBuilder<'a>, SqlQueryBuilder<'a>) {
     if !validate_equal_filter_type(&filter) {
         return (builder, count_builder);
@@ -90,7 +112,7 @@ fn apply_equal_filter<'a>(
 fn apply_like_filter<'a>(
     mut builder: SqlQueryBuilder<'a>,
     mut count_builder: SqlQueryBuilder<'a>,
-    filter: LikeFilter
+    filter: LikeFilter,
 ) -> (SqlQueryBuilder<'a>, SqlQueryBuilder<'a>) {
     if !validate_like_filter_type(&filter) {
         return (builder, count_builder);
@@ -112,7 +134,7 @@ fn apply_like_filter<'a>(
 fn apply_not_filter<'a>(
     mut builder: SqlQueryBuilder<'a>,
     mut count_builder: SqlQueryBuilder<'a>,
-    filter: NotFilter
+    filter: NotFilter,
 ) -> (SqlQueryBuilder<'a>, SqlQueryBuilder<'a>) {
     builder.add_condition();
     builder.builder.push("not ");
@@ -126,14 +148,14 @@ fn apply_not_filter<'a>(
 
     builder.end_parentheses();
     count_builder.end_parentheses();
-    
+
     return (builder, count_builder);
 }
 
 fn apply_and_filter<'a>(
     mut builder: SqlQueryBuilder<'a>,
     mut count_builder: SqlQueryBuilder<'a>,
-    filter: AndFilter
+    filter: AndFilter,
 ) -> (SqlQueryBuilder<'a>, SqlQueryBuilder<'a>) {
     builder.add_condition();
     builder.begin_parentheses();
@@ -153,14 +175,14 @@ fn apply_and_filter<'a>(
 
     builder.end_parentheses();
     count_builder.end_parentheses();
-    
+
     return (builder, count_builder);
 }
 
 fn apply_or_filter<'a>(
     mut builder: SqlQueryBuilder<'a>,
     mut count_builder: SqlQueryBuilder<'a>,
-    filter: OrFilter
+    filter: OrFilter,
 ) -> (SqlQueryBuilder<'a>, SqlQueryBuilder<'a>) {
     builder.add_condition();
     builder.begin_parentheses();
@@ -180,19 +202,23 @@ fn apply_or_filter<'a>(
 
     builder.end_parentheses();
     count_builder.end_parentheses();
-    
+
     return (builder, count_builder);
 }
 
 fn add_filters<'a>(
     builder: SqlQueryBuilder<'a>,
     count_builder: SqlQueryBuilder<'a>,
-    filter: Option<CardFilter>
+    filter: Option<CardFilter>,
 ) -> (SqlQueryBuilder<'a>, SqlQueryBuilder<'a>) {
     if let Some(filter) = filter {
         return match filter {
-            CardFilter::Equal(equal_filter) => apply_equal_filter(builder, count_builder, *equal_filter),
-            CardFilter::Like(like_filter) => apply_like_filter(builder, count_builder, *like_filter),
+            CardFilter::Equal(equal_filter) => {
+                apply_equal_filter(builder, count_builder, *equal_filter)
+            }
+            CardFilter::Like(like_filter) => {
+                apply_like_filter(builder, count_builder, *like_filter)
+            }
             CardFilter::Not(not_filter) => apply_not_filter(builder, count_builder, *not_filter),
             CardFilter::And(and_filter) => apply_and_filter(builder, count_builder, *and_filter),
             CardFilter::Or(or_filter) => apply_or_filter(builder, count_builder, *or_filter),
@@ -205,24 +231,21 @@ fn build_query<'a>(
     mut builder: SqlQueryBuilder<'a>,
     mut count_builder: SqlQueryBuilder<'a>,
     filter: Option<CardFilter>,
-    http_query: Option<CardHttpQuery>
+    http_query: Option<CardHttpQuery>,
 ) -> (SqlQueryBuilder<'a>, SqlQueryBuilder<'a>) {
     let mut count = 10;
     let mut page = 0;
     if let Some(http_query) = http_query {
         let max_count = 100;
-        if let Some(filter_count) = http_query.count
-        {
+        if let Some(filter_count) = http_query.count {
             if filter_count <= max_count && filter_count > 0 {
                 count = filter_count;
             }
         }
 
-        if let Some(filter_page) = http_query.page
-        {
+        if let Some(filter_page) = http_query.page {
             page = filter_page - 1;
         }
-
     }
     (builder, count_builder) = add_filters(builder, count_builder, filter);
     builder.builder.push(" group by name");
@@ -239,12 +262,13 @@ impl CardComplete {
     pub async fn list(
         conn: &mut PoolConnection<Sqlite>,
         filter: Option<CardFilter>,
-        http_query: Option<CardHttpQuery>
+        http_query: Option<CardHttpQuery>,
     ) -> Result<CardCompleteResult, HttpError> {
         let builder = SqlQueryBuilder::new("select * from cards".to_string());
         let count_builder = SqlQueryBuilder::new("select count(1) as total from cards".to_string());
 
-        let (mut builder, mut count_builder) = build_query(builder, count_builder, filter, http_query);
+        let (mut builder, mut count_builder) =
+            build_query(builder, count_builder, filter, http_query);
 
         let query = builder.builder.build_query_as::<CardComplete>();
         let result: Result<Vec<CardComplete>, _> = query.fetch_all(&mut *conn).await;
@@ -278,7 +302,7 @@ impl CardSimple {
     pub async fn list(
         conn: &mut PoolConnection<Sqlite>,
         filter: Option<CardFilter>,
-        http_query: Option<CardHttpQuery>
+        http_query: Option<CardHttpQuery>,
     ) -> Result<CardSimpleResult, HttpError> {
         let query_start = "select
         name, manaValue, manaCost, keywords, text, 
@@ -291,7 +315,8 @@ impl CardSimple {
         let count_builder =
             SqlQueryBuilder::new("select count(distinct name) as total from cards".to_string());
 
-        let (mut builder, mut count_builder) = build_query(builder, count_builder, filter, http_query);
+        let (mut builder, mut count_builder) =
+            build_query(builder, count_builder, filter, http_query);
 
         let query = builder.builder.build_query_as::<CardSimple>();
         let result: Result<Vec<CardSimple>, _> = query.fetch_all(&mut *conn).await;
