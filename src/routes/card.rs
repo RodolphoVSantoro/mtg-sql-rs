@@ -41,12 +41,12 @@ pub async fn list(
     match cards_result {
         Ok(cards_result) => {
             return ok_response(CardResult {
-                count: cards_result.cards.iter().count(),
+                count: cards_result.cards.len(),
                 total: cards_result.total,
                 data: cards_result
                     .cards
                     .into_iter()
-                    .map(|card| Card::Simple(card))
+                    .map(|card| Card::Simple(Box::new(card)))
                     .collect(),
             });
         }
@@ -78,12 +78,12 @@ pub async fn list_complete(
     match cards_result {
         Ok(cards_result) => {
             return ok_response(CardResult {
-                count: cards_result.cards.iter().count(),
+                count: cards_result.cards.len(),
                 total: cards_result.total,
                 data: cards_result
                     .cards
                     .into_iter()
-                    .map(|card| Card::Complete(card))
+                    .map(|card| Card::Complete(Box::new(card)))
                     .collect(),
             });
         }
@@ -103,8 +103,8 @@ pub fn router() -> Router<AppState> {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(untagged)]
 enum Card {
-    Simple(card::CardSimple),
-    Complete(card::CardComplete),
+    Simple(Box<card::CardSimple>),
+    Complete(Box<card::CardComplete>),
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]

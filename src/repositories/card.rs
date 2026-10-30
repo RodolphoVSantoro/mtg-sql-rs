@@ -74,7 +74,7 @@ const STR_FILTERS: &[&str] = &[
     "borderColor",
     "artist",
     "leadershipSkills",
-    "printings"
+    "printings",
 ];
 
 fn validate_like_filter_type(filter: &LikeFilter) -> bool {
@@ -89,44 +89,44 @@ fn validate_equal_filter_type(filter: &EqualFilter) -> bool {
 fn apply_equal_filter<'a>(
     mut builder: SqlQueryBuilder<'a>,
     mut count_builder: SqlQueryBuilder<'a>,
-    filter: EqualFilter,
+    filter: &EqualFilter,
 ) -> (SqlQueryBuilder<'a>, SqlQueryBuilder<'a>) {
-    if !validate_equal_filter_type(&filter) {
+    if !validate_equal_filter_type(filter) {
         return (builder, count_builder);
     }
     builder.add_condition();
     builder
         .builder
-        .push(format!("{} = ", &filter.field))
-        .push_bind(format!("{}", &filter.value));
+        .push(format!("{} = ", filter.field))
+        .push_bind(format!("{}", filter.value));
 
     count_builder.add_condition();
     count_builder
         .builder
-        .push(format!("{} = ", &filter.field))
-        .push_bind(format!("{}", &filter.value));
+        .push(format!("{} = ", filter.field))
+        .push_bind(format!("{}", filter.value));
     return (builder, count_builder);
 }
 
 fn apply_like_filter<'a>(
     mut builder: SqlQueryBuilder<'a>,
     mut count_builder: SqlQueryBuilder<'a>,
-    filter: LikeFilter,
+    filter: &LikeFilter,
 ) -> (SqlQueryBuilder<'a>, SqlQueryBuilder<'a>) {
-    if !validate_like_filter_type(&filter) {
+    if !validate_like_filter_type(filter) {
         return (builder, count_builder);
     }
     builder.add_condition();
     builder
         .builder
-        .push(format!("lower({}) like ", &filter.field))
-        .push_bind(format!("%{}%", &filter.value));
+        .push(format!("lower({}) like ", filter.field))
+        .push_bind(format!("%{}%", filter.value));
 
     count_builder.add_condition();
     count_builder
         .builder
-        .push(format!("lower({}) like", &filter.field))
-        .push_bind(format!("%{}%", &filter.value));
+        .push(format!("lower({}) like", filter.field))
+        .push_bind(format!("%{}%", filter.value));
     return (builder, count_builder);
 }
 
@@ -213,10 +213,10 @@ fn add_filters<'a>(
     if let Some(filter) = filter {
         return match filter {
             CardFilter::Equal(equal_filter) => {
-                apply_equal_filter(builder, count_builder, *equal_filter)
+                apply_equal_filter(builder, count_builder, &equal_filter)
             }
             CardFilter::Like(like_filter) => {
-                apply_like_filter(builder, count_builder, *like_filter)
+                apply_like_filter(builder, count_builder, &like_filter)
             }
             CardFilter::Not(not_filter) => apply_not_filter(builder, count_builder, *not_filter),
             CardFilter::And(and_filter) => apply_and_filter(builder, count_builder, *and_filter),
@@ -236,10 +236,11 @@ fn build_query<'a>(
     let mut page = 0;
     if let Some(http_query) = http_query {
         let max_count = 100;
-        if let Some(filter_count) = http_query.count {
-            if filter_count <= max_count && filter_count > 0 {
-                count = filter_count;
-            }
+        if let Some(filter_count) = http_query.count
+            && filter_count <= max_count
+            && filter_count > 0
+        {
+            count = filter_count;
         }
 
         if let Some(filter_page) = http_query.page {
@@ -248,12 +249,12 @@ fn build_query<'a>(
     }
     (builder, count_builder) = add_filters(builder, count_builder, filter);
     builder.builder.push(" group by name");
-    builder.builder.push(format!(" limit {}", count));
+    builder.builder.push(format!(" limit {count}"));
     builder.builder.push(format!(" offset {}", page * count));
-    let test = builder.builder.sql();
-    println!("{:?}", test);
-    let test = count_builder.builder.sql();
-    println!("{:?}", test);
+
+    println!("{:?}", builder.builder.sql());
+    println!("{}", count_builder.builder.sql());
+
     return (builder, count_builder);
 }
 
@@ -282,13 +283,13 @@ impl CardComplete {
                 });
             }
             (Err(err), _) => {
-                println!("err: {:?}", err);
+                println!("err: {err}");
                 return Err(HttpError::InternalError(
                     "Failed to fetch cards".to_string(),
                 ));
             }
             (_, Err(err)) => {
-                println!("err: {:?}", err);
+                println!("err: {err}");
                 return Err(HttpError::InternalError(
                     "Failed to fetch card count".to_string(),
                 ));
@@ -330,13 +331,13 @@ impl CardSimple {
                 });
             }
             (Err(err), _) => {
-                println!("err: {:?}", err);
+                println!("err: {err}");
                 return Err(HttpError::InternalError(
                     "Failed to fetch cards".to_string(),
                 ));
             }
             (_, Err(err)) => {
-                println!("err: {:?}", err);
+                println!("err: {err}");
                 return Err(HttpError::InternalError(
                     "Failed to fetch card count".to_string(),
                 ));

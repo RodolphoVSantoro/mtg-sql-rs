@@ -16,20 +16,20 @@ impl SqlQueryBuilder<'_> {
         }
     }
     pub fn add_and(&mut self) {
-        if !self.has_where {
+        if self.has_where {
+            self.builder.push(" and ");
+        } else {
             self.builder.push(" where ");
             self.has_where = true;
-        } else {
-            self.builder.push(" and ");
         }
     }
 
     pub fn add_or(&mut self) {
-        if !self.has_where {
+        if self.has_where {
+            self.builder.push(" or ");
+        }else {
             self.builder.push(" where ");
             self.has_where = true;
-        }else {
-            self.builder.push(" or ");
         }
     }
 
@@ -39,11 +39,11 @@ impl SqlQueryBuilder<'_> {
             self.has_where = true;
         }
         self.builder.push("( ");
-        self.parentheses_level+=1;
+        self.parentheses_level += 1;
     }
 
     pub fn end_parentheses(&mut self) {
-        if self.parentheses_level <= 0 {
+        if self.parentheses_level == 0 {
             let sql = self.builder.sql();
             panic!("Mismatched end parentheses in expression: {sql}");
         }
