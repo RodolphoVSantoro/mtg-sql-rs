@@ -5,13 +5,12 @@ mod models;
 mod repositories;
 mod routes;
 use axum::Router;
-use sqlx::SqlitePool;
 
 #[tokio::main]
 async fn main() {
     dotenvy::dotenv().ok();
-    let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
-    let pool = SqlitePool::connect(&database_url).await.unwrap();
+    let database_url = std::env::var("DB_FILE").expect("DB_FILE must be set");
+    let pool = helpers::db::pre_load_db_into_memory(database_url).await;
 
     let app_state = helpers::AppState { pool };
 
