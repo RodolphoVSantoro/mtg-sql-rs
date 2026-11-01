@@ -15,7 +15,29 @@ Example:
 The body's type should be CardFilter
 ```ts
 type NumberFilter = 'manaValue';
-type StringFilter = 'name' | 'text' | 'flavorText' | 'manaCost' | 'artist' | 'borderColor' | 'power' | 'toughness' | 'loyalty';
+type StringFilter = 
+    'name' |
+    'text' |
+    'flavorText' |
+    'keywords' |
+    'manaCost' |
+    'power' |
+    'toughness' |
+    'life' |
+    'loyalty' |
+    'power' |
+    'toughness' |
+    'loyalty' |
+    'colors' |
+    'colorIdentity' |
+    'type' |
+    'types' |
+    'subtypes' |
+    'supertypes' |
+    'borderColor' |
+    'artist' |
+    'leadershipSkills' |
+    'printings';
 
 type LikeFilter = {
 	operation: "like",
