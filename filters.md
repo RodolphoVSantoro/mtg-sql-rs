@@ -70,6 +70,7 @@ type CardFilter = OrFilter | AndFilter | NotFilter | LikeFilter | EqualFilter;
 ```
 
 ### Example:
+A query looking for "(mana value not equal 3) and (name like medallion or flavorText like ruler)"
 ```json
 {
     "operation": "and",
