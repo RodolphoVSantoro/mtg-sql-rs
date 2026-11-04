@@ -4,10 +4,11 @@ use sqlx::{Pool, Sqlite, SqlitePool, sqlite::SqliteConnectOptions};
 
 fn check_file(file_name: &str) {
     let path = Path::new(&file_name);
-    assert!(path.exists(),
-         "Database file not found at path: {}. Current directory: {:?}",
-         file_name,
-         std::env::current_dir()
+    assert!(
+        path.exists(),
+        "Database file not found at path: {}. Current directory: {:?}",
+        file_name,
+        std::env::current_dir()
     );
 }
 

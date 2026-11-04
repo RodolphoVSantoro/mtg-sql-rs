@@ -6,7 +6,7 @@ use crate::{
         responses::{internal_server_response, ok_response},
     },
     models::card,
-    repositories::card::{CardFilter, CardHttpQuery},
+    repositories::{card::CardHttpQuery, card_filter::CardFilter},
 };
 
 use axum::{
@@ -72,8 +72,12 @@ pub async fn list_complete(
         }
     };
 
-    let cards_result = card::CardComplete::list(conn, body.map(|Json(filter)| filter),
-        query.map(|Query(card_query)| card_query),).await;
+    let cards_result = card::CardComplete::list(
+        conn,
+        body.map(|Json(filter)| filter),
+        query.map(|Query(card_query)| card_query),
+    )
+    .await;
 
     match cards_result {
         Ok(cards_result) => {

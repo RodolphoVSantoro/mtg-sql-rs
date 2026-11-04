@@ -1,7 +1,7 @@
 #![allow(clippy::needless_return, clippy::manual_let_else)]
 
-use sqlx::FromRow;
 use serde::{Deserialize, Serialize};
+use sqlx::FromRow;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct CardSimpleResult {
@@ -24,6 +24,7 @@ pub struct Count {
 #[derive(Serialize, Deserialize, Clone, FromRow, Debug)]
 #[sqlx(rename_all = "camelCase")]
 pub struct CardSimple {
+    pub scryfall_id: Option<String>,
     pub name: Option<String>,
     pub mana_value: Option<f64>,
     pub mana_cost: Option<String>,
@@ -50,6 +51,7 @@ pub struct CardSimple {
 #[derive(Serialize, Deserialize, Clone, FromRow, Debug)]
 #[sqlx(rename_all = "camelCase")]
 pub struct CardComplete {
+    pub scryfall_id: Option<String>,
     pub artist: Option<String>,
     pub artist_ids: Option<String>,
     pub ascii_name: Option<String>,

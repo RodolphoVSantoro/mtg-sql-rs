@@ -14,7 +14,7 @@ async fn main() {
 
     let pool = match db_mode.as_str() {
         "memory" => helpers::db::pre_load_db_into_memory(database_url).await,
-        "disk" =>helpers::db::create_pool_to_disk_file(database_url).await,
+        "disk" => helpers::db::create_pool_to_disk_file(database_url).await,
         _ => panic!("Unknown db mode '{db_mode}', allowed types: [\"memory\", \"disk\"]"),
     };
 

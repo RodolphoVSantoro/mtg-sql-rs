@@ -3,8 +3,8 @@
 use sqlx::{Pool, Sqlite};
 
 pub mod db;
-pub mod responses;
 pub mod query_builder;
+pub mod responses;
 
 #[derive(Clone, Debug)]
 pub struct AppState {

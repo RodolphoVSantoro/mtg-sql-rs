@@ -27,7 +27,7 @@ impl SqlQueryBuilder<'_> {
     pub fn add_or(&mut self) {
         if self.has_where {
             self.builder.push(" or ");
-        }else {
+        } else {
             self.builder.push(" where ");
             self.has_where = true;
         }

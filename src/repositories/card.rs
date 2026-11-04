@@ -1,49 +1,14 @@
 #![allow(clippy::needless_return, clippy::manual_let_else)]
 
 use serde::Deserialize;
-use serde_json::Value;
 use sqlx::{Sqlite, pool::PoolConnection};
 
 use crate::helpers::query_builder::SqlQueryBuilder;
 use crate::helpers::responses::HttpError;
 use crate::models::card::{CardComplete, CardCompleteResult, CardSimple, CardSimpleResult, Count};
-
-#[derive(Debug, Clone, Deserialize)]
-pub struct EqualFilter {
-    pub field: String,
-    pub value: Value,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-pub struct LikeFilter {
-    pub field: String,
-    pub value: String,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-pub struct NotFilter {
-    pub filter: CardFilter,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-pub struct AndFilter {
-    pub filters: Vec<CardFilter>,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-pub struct OrFilter {
-    pub filters: Vec<CardFilter>,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-#[serde(tag = "operation", rename_all = "lowercase")]
-pub enum CardFilter {
-    Equal(Box<EqualFilter>),
-    Like(Box<LikeFilter>),
-    Not(Box<NotFilter>),
-    And(Box<AndFilter>),
-    Or(Box<OrFilter>),
-}
+use crate::repositories::card_filter::{
+    AndFilter, CardFilter, EqualFilter, LikeFilter, NotFilter, OrFilter,
+};
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct CardHttpQuery {
@@ -51,60 +16,64 @@ pub struct CardHttpQuery {
     pub count: Option<u32>,
 }
 
-const NUM_FILTERS: &[&str] = &["manaValue"];
-const STR_FILTERS: &[&str] = &[
-    "name",
-    "text",
-    "flavorText",
-    "keywords",
-    "manaCost",
-    "power",
-    "toughness",
-    "life",
-    "loyalty",
-    "power",
-    "toughness",
-    "loyalty",
-    "colors",
-    "colorIdentity",
-    "type",
-    "types",
-    "subtypes",
-    "supertypes",
-    "borderColor",
-    "artist",
-    "leadershipSkills",
-    "printings",
-];
-
-fn validate_like_filter_type(filter: &LikeFilter) -> bool {
-    return STR_FILTERS.contains(&filter.field.as_str());
-}
-
-fn validate_equal_filter_type(filter: &EqualFilter) -> bool {
-    return NUM_FILTERS.contains(&filter.field.as_str())
-        || STR_FILTERS.contains(&filter.field.as_str());
-}
-
 fn apply_equal_filter<'a>(
     mut builder: SqlQueryBuilder<'a>,
     mut count_builder: SqlQueryBuilder<'a>,
     filter: &EqualFilter,
 ) -> (SqlQueryBuilder<'a>, SqlQueryBuilder<'a>) {
-    if !validate_equal_filter_type(filter) {
+    if !filter.validate_field() {
         return (builder, count_builder);
     }
-    builder.add_condition();
-    builder
-        .builder
-        .push(format!("{} = ", filter.field))
-        .push_bind(format!("{}", filter.value));
 
-    count_builder.add_condition();
-    count_builder
-        .builder
-        .push(format!("{} = ", filter.field))
-        .push_bind(format!("{}", filter.value));
+    builder.add_condition();
+
+    if filter.value.is_string() {
+        builder
+            .builder
+            .push(format!("{} = ", filter.get_field()))
+            .push_bind(
+                filter
+                    .value
+                    .as_str()
+                    .expect("failed to parse filter value")
+                    .to_string(),
+            );
+
+        count_builder.add_condition();
+        count_builder
+            .builder
+            .push(format!("{} = ", filter.get_field()))
+            .push_bind(
+                filter
+                    .value
+                    .as_str()
+                    .expect("failed to parse filter value")
+                    .to_string(),
+            );
+    } else if filter.value.is_number() {
+        builder
+            .builder
+            .push(format!("{} = ", filter.get_field()))
+            .push_bind(format!(
+                "{}",
+                filter
+                    .value
+                    .as_number()
+                    .expect("failed to parse filter value")
+            ));
+
+        count_builder.add_condition();
+        count_builder
+            .builder
+            .push(format!("{} = ", filter.get_field()))
+            .push_bind(format!(
+                "{}",
+                filter
+                    .value
+                    .as_number()
+                    .expect("failed to parse filter value")
+            ));
+    }
     return (builder, count_builder);
 }
 
@@ -113,19 +82,19 @@ fn apply_like_filter<'a>(
     mut count_builder: SqlQueryBuilder<'a>,
     filter: &LikeFilter,
 ) -> (SqlQueryBuilder<'a>, SqlQueryBuilder<'a>) {
-    if !validate_like_filter_type(filter) {
+    if !filter.validate_field() {
         return (builder, count_builder);
     }
     builder.add_condition();
     builder
         .builder
-        .push(format!("lower({}) like ", filter.field))
+        .push(format!("lower({}) like ", filter.get_field()))
         .push_bind(format!("%{}%", filter.value));
 
     count_builder.add_condition();
     count_builder
         .builder
-        .push(format!("lower({}) like", filter.field))
+        .push(format!("lower({}) like", filter.get_field()))
         .push_bind(format!("%{}%", filter.value));
     return (builder, count_builder);
 }
@@ -264,8 +233,14 @@ impl CardComplete {
         filter: Option<CardFilter>,
         http_query: Option<CardHttpQuery>,
     ) -> Result<CardCompleteResult, HttpError> {
-        let builder = SqlQueryBuilder::new("select * from cards".to_string());
-        let count_builder = SqlQueryBuilder::new("select count(1) as total from cards".to_string());
+        let builder = SqlQueryBuilder::new(
+            "select scryfallId , ca.* from cards ca join cardIdentifiers ci on ca.uuid = ci.uuid"
+                .to_string(),
+        );
+        let count_builder = SqlQueryBuilder::new(
+            "select count(1) as total from cards ca join cardIdentifiers ci on ca.uuid = ci.uuid"
+                .to_string(),
+        );
 
         let (mut builder, mut count_builder) =
             build_query(builder, count_builder, filter, http_query);
@@ -305,15 +280,16 @@ impl CardSimple {
         http_query: Option<CardHttpQuery>,
     ) -> Result<CardSimpleResult, HttpError> {
         let query_start = "select
-        name, manaValue, manaCost, keywords, text, 
+        scryfallId, name, manaValue, manaCost, keywords, text, 
         power, toughness, life, loyalty, colors, colorIdentity,
         type, types, subtypes, supertypes, borderColor, availability,
         flavorText, artist, leadershipSkills, printings
-        from cards"
+        from cards ca
+        join cardIdentifiers ci on ci.uuid = ca.uuid"
             .to_string();
         let builder = SqlQueryBuilder::new(query_start);
         let count_builder =
-            SqlQueryBuilder::new("select count(distinct name) as total from cards".to_string());
+            SqlQueryBuilder::new("select count(distinct name) as total from cards ca join cardIdentifiers ci on ca.uuid = ci.uuid".to_string());
 
         let (mut builder, mut count_builder) =
             build_query(builder, count_builder, filter, http_query);
